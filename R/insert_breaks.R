@@ -147,7 +147,7 @@ insert_break <- function(level,
   start <- paste0(rep("#", level), collapse = "")
   break_char = give_breakchar(level)
   #sep = paste(rep(" ", 4 - level), collapse = "")
-  sep = paste(rep(" ", 8 - level), collapse = "")
+  sep = paste(rep(" ", 4 - level), collapse = "")
 
 
 
@@ -326,7 +326,7 @@ help_insert <- function(x,
 #' @keywords internal
 find_title <- function(level) {
   #choices_input <- paste("level", 1:3)
-  choices_input <- paste("level", 1:7)
+  choices_input <- paste("level", 1:3)
   ui <- miniPage(
     miniContentPanel(
       fillCol(
