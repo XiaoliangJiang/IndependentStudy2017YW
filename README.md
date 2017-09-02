@@ -23,6 +23,8 @@ You can install the package from GitHub.
 devtools::install_github("lorenzwalthert/strcode")
 ```
 
+You may also need to install `igraph` package before generating RDF diagram.
+
 Structuring code
 ================
 
