@@ -39,8 +39,22 @@
 #'   contain a title or not.
 #' @param header A boolean value indicating whether a column header should
 #'   indicate the name of the columns (line, level, section).
+#' @param rdf A boolean value indicating whether a rdf file should be generated.
+#' @param graph A boolean value indicating whether a rdf graph should be generated.
+#' @param domain A boolean value indicating whether use user's working domain as
+#' a prefix header in generated rdf file.
+#' @param baseURI A character string naming the URI for user's working domain.
+#' @param UserID A character string naming the user name in the working domain.
+#' @param prefix A character string naming the abbreviation for user's domain.
+#' @param UserAL A boolean value indicating whether use default association
+#' library.
+#' @param fillAssociation A boolean value indicating whether use a pair of default
+#' associations to name unlisted associations in User default association library.
+#' @param UserANM A boolean value indicating whether use defaut association list.
+#' Only associations in this list could serve as an relationship in output rdf graph.
 #' @param ... futher arguments to be passed from and to other methods, in
 #'   particular \code{\link{list.files}} for reading in multiple files.
+
 #' @details To create the summary, \code{sum_str} uses regular expressions.
 #'   Hence it is crucial that the code separators and the separator titles
 #'   match the regular expression pattern. We recommend inserting
@@ -50,10 +64,10 @@
 #'   as well.
 #'   \itemize{
 #'     \item A code separator is defined as a line that starts with n hashes,
-#'     followed by 4-n spaces where 0 < n < 4. This sequence is followed by one
+#'     followed by 8-n spaces where 0 < n < 8. This sequence is followed by one
 #'     or more either \code{.} or \code{_}.
 #'     \item A title associated with a code separator is defined as a line
-#'     that starts with n hashes, followed by 4-n spaces where 0 < n < 4. This
+#'     that starts with n hashes, followed by 8-n spaces where 0 < n < 8. This
 #'     sequence is \emph{not} followed by \code{.} or \code{_}.
 #'   }
 #'   Lines that do not satisfy these requirements (e.g. do not start with #s,
@@ -73,11 +87,20 @@
 #' # the following separator is an example of a valid
 #' # separator and associated title
 #'
-#' #   __________________________________________________
-#' #   this is a level 1 title                     ####
+#' #       __________________________________________________
+#' #       this is a level 1 title                       ####
 #' ##  . . . . . . . . . . . . . . . . . . . . . . . . .
 #' ##  note that the title or the separator character (_, .)
-#' ##  always starts at indention 4.
+#' ##  always starts at indention 8.
+#' # to create separators which is valid for generating rdf file,
+#' # users should fill out at least title and class, and put the entities into
+#' # correct levels to create associations automatically by function.
+#'
+#' # the following separator is an example of a valid
+#' # separator and associated title for generating rdf file
+#'
+#' #       ________________________________________________________________________
+#' #       YourWorkflow {YourID provone:Workflow}                              ####
 #'
 #' \dontrun{
 #' # Open a new .R file in RStudio, insert some code breaks
@@ -103,6 +126,16 @@ sum_str <- function(path_in = getSourceEditorContext()$path,
                     last_sep = FALSE,
                     title = TRUE,
                     header = TRUE,
+                    rdf = FALSE,
+                    graph=FALSE,
+                    domain=FALSE,
+                    baseURI="http://example.org/base/",
+                    UserID="UserID",
+                    prefix="user",
+                    UserAL=FALSE,
+                    fillAssociation=FALSE,
+                    UserANM=FALSE,
+                    HideAssociation=FALSE,
                     ...) {
 
 ##  ............................................................................
@@ -138,6 +171,7 @@ assert_number(granularity, lower = 1, upper = 3)
     cat("The following files were summarized \n")
   }
   output <- lapply(all_files, function(g) {
+
     # pass all arguments as is except the path_in
     if (dir_out != "") {
       cat(g, sep = " \n")
@@ -154,7 +188,17 @@ assert_number(granularity, lower = 1, upper = 3)
                    granularity = granularity,
                    last_sep = last_sep,
                    title = title,
-                   header = header)
+                   header = header,
+                   rdf=rdf,
+                   graph=graph,
+                   domain=domain,
+                   baseURI=baseURI,
+                   UserID=UserID,
+                   prefix=prefix,
+                   UserAL=UserAL,
+                   fillAssociation=fillAssociation,
+                   UserANM=UserANM,
+                   HideAssociation=HideAssociation)
   })
 
   if (dir_out == "" && !is.null(file_out) && file_out == "object") {
@@ -193,7 +237,17 @@ sum_str_helper <- function(path_in,
                            granularity,
                            last_sep,
                            title,
-                           header) {
+                           header,
+                           rdf,
+                           graph,
+                           domain,
+                           baseURI,
+                           UserID,
+                           prefix,
+                           UserAL,
+                           fillAssociation,
+                           UserANM,
+                           HideAssociation) {
 
 ##  ............................................................................
 ##  argument interaction                                                    ####
@@ -220,11 +274,13 @@ sum_str_helper <- function(path_in,
     path_out <- paste(dir_out, file_out, sep = "/")
   }
 
+
+
 ##  ............................................................................
 ##  get pattern
 
   lines <- readLines(con = path_in)
-  sub_pattern <- "^#   [^ ]|^##  [^ ]|^### [^ ]"
+  sub_pattern <- "^\\s*# @\\w"
   cand <- grep(sub_pattern, lines, perl = FALSE) # extract candiates id
   if (length(cand) == 0) {
     return(warning("No line matching the required pattern",
@@ -241,7 +297,7 @@ if (rm_break_anchors) {
   lvl <- nchar(gsub("^(#+)\\s.*$", "\\1", lines[hash_candid], perl = TRUE))
   replacement <- vapply(lvl, function(x) help_create_break(start = paste0(rep("#", x), collapse = ""),
                                            break_char = give_breakchar(x),
-                                           sep = paste(rep(" ", 4 - x), collapse = ""), anchor_in_sep = FALSE),
+                                           sep = paste(rep(" ", 8 - x), collapse = ""), anchor_in_sep = FALSE),
                   FUN.VALUE = character(1))
   lines[hash_candid] <- replacement
 
@@ -253,7 +309,7 @@ if (rm_break_anchors) {
   remove <- c()
   if (granularity < 3) { # if there are any lines to remove
     hashes <- (granularity + 1):3
-    spaces <- 4 - hashes
+    spaces <-  8- hashes
 
     # this variable stores the indices of all lines that should be dropped.
     for (i in 1:length(hashes)) {
@@ -266,7 +322,7 @@ if (rm_break_anchors) {
 ### remove last separator
   if (last_sep == FALSE) {
     hashes <- min(find_gran("down", lines = lines), granularity)
-    spaces <- 4 - hashes
+    spaces <- 8 - hashes
     sub_pattern <- paste0("^#{", hashes, "}\\s{", spaces, "}[\\._].*$")
     remove <- append(remove, grep(sub_pattern, lines, perl = TRUE))
   }
@@ -330,9 +386,785 @@ if (rm_break_anchors) {
 
 ##  ............................................................................
 ##  output the pattern
-  if (dir_out == "" && file_out == "object") {
+
+ if (rdf=="ttl"|graph){ # if users want to generate rdf file or rdf graph
+   # use system time to generate a base file
+    datetime <- format(Sys.time(), "%Y_%m_%d_%H_%M_%S")
+    fileformat=".ttl" #".txt"
+    outputfile2 <- paste("RDF_output_file_",datetime,fileformat,sep="")
+    write(lines,file=outputfile2)
+
+
+    templines=readLines(outputfile2)
+    print (templines)
+    lines_content=templines[4:length(templines)]
+    lines_split=strsplit(lines_content, " ")
+    print (lines_split)
+
+    baseURI=baseURI
+    UserID=UserID
+    FullURI=paste0(baseURI,UserID,"/")
+    prefix=prefix
+
+    schemalist=list()
+    # a schemas library to create headers by using keywords in content
+    schemas=c(xsd="@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .",
+          owl="@prefix owl:     <http://www.w3.org/2002/07/owl#> .",
+          dcterms="@prefix dcterms: <http://purl.org/dc/terms/> .",
+          prov="@prefix prov:    <http://www.w3.org/ns/prov#> .",
+          wfms="@prefix wfms:    <http://www.wfms.org/registry.xsd> .",
+          rdf="@prefix rdf:       <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .",
+          provone="@prefix provone: <http://dataone.org/ns/provone#> .",
+          skos="@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .",
+          yw="@prefix yw:   	 <http://yesworkflow.org/ns/yesworkflow#> .",
+          cwfo="@prefix cwfo:    <http://cwf.tw.rpi.edu/vocab#> .",
+          cwf="@prefix cwf:     <http://cwf.tw.rpi.edu/data#> .")
+    # Using ":" to find class
+    for (i in 1:length(lines_split)){
+     schemalist[[i]]=grep(":",lines_split[[i]])
+    }
+    tempcount0=0
+    schemalist1=list()
+    for (i in 1:length(schemalist)){
+      if (length(schemalist[[i]])>0){
+        tempcount0=tempcount0+1
+        schemalist1[[tempcount0]]=schemalist[[i]]
+      }
+    }
+    # delete the seperator line and get useful information only
+    tempcount0=0
+    lines_split1=list()
+    for (i in 1:length(schemalist)){
+      if (length(schemalist[[i]])>0){
+        tempcount0=tempcount0+1
+        lines_split1[[tempcount0]]=lines_split[[i]]
+      }
+    }
+
+    lines_split=lines_split1
+    schemalist=schemalist1
+    lines_split1=schemalist
+    for (i in 1:length(lines_split)){
+      tempcount0=0
+      for (j in 1:length(lines_split[[i]])){
+        if (nchar(lines_split[[i]][j])>0){
+          tempcount0=tempcount0+1
+          lines_split1[[i]][tempcount0]=lines_split[[i]][j]
+        }
+      }
+    }
+    # delete the symbols which is used in seperator line
+    for (i in 1:length(lines_split1)){
+      schemalist[[i]]=grep(":",lines_split1[[i]])
+    }
+    lines_split=lines_split1
+
+    infolist=lines_split
+   print ("this is infolist1")
+   print (infolist)
+    for (i in 1:length(infolist)){
+      templevel=strsplit(infolist[[i]][1],"\\t")
+      infolist[[i]][1]=nchar(templevel[[1]][2])
+    }
+    for (i in 1:length(infolist)){
+      infolist[[i]][3]=gsub("\\{","",infolist[[i]][3])
+      infolist[[i]][3]=gsub("\\#","",infolist[[i]][3])
+    }
+    for (i in 1:length(infolist)){
+      infolist[[i]][length(infolist[[i]])]=gsub("\\}","",infolist[[i]][length(infolist[[i]])])
+    }
+    infolist1=infolist
+
+   # delete JSON-LD style structure and only leave the useful information
+    for (i in grep("\":",infolist)){
+      infolist[[i]][2]=gsub(",","",infolist1[[i]][4])
+      infolist[[i]][3]=gsub(",","",infolist1[[i]][2])
+      infolist[[i]][4]=gsub(",","",infolist1[[i]][3])
+    }
+
+    for (j in 1:length(infolist)){
+      for (i in 1:length(strsplit(infolist[[j]], "\":"))){
+        if (length(strsplit(infolist[[j]], "\":")[[i]])>1){
+          infolist1[[j]][i]=strsplit(infolist[[j]], "\":")[[i]][2]
+      }
+    }
+    }
+    infolist=infolist1
+    print ("this is infolist2")
+   print (infolist)
+
+    schemahad=0
+    lines_rdf=" @prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .\n"
+    count0=1
+
+    schemalist1=list()
+    for (i in 1:length(infolist)){
+      schemalist1[[i]]=grep(":",infolist[[i]])
+    }
+    schemalist=schemalist1
+
+    # add prefix
+    for (i in 1:length(schemalist)){
+      for (j in 1:length(schemalist[[i]])){
+        tempstr=infolist[[i]][(schemalist[[i]])[j]]
+        tempschemastr=gsub("\\.","",strsplit(tempstr,'\\:')[[1]][1])
+        schemas[tempschemastr]
+        if (tempschemastr %in% schemahad) {
+        }
+        else{schemahad[count0]=tempschemastr
+        count0=count0+1}
+      }
+    }
+    # adding headers:
+    lines_rdf=paste0(lines_rdf," @prefix ",prefix,":    ","<",FullURI,"> .\n")
+    for (i in 1:length(schemahad)){
+      lines_rdf=paste(lines_rdf,schemas[schemahad[i]],"\n")
+    }
+    # creating a default association list
+    DefaultAssociationlist=paste0("AssociationName\n","provone:hasSubProcess\n","provone:sourcePToCL\n","provone:CLtoDestP\n",
+                  "provone:hasInPort\n","provone:hasOutPort\n","provone:hasDefaultParam\n",
+                  "provone:DLToInPort\n","provone:outPortToDL\n","provone:inPortToDL\n",
+                  "provone:DLToOutPort\n","provone:wasAttributedTo\n","provone:wasDerivedFrom\n",
+                  "provone:dataOnLink\n","provone:used\n","provone:wasGeneratedBy\n",
+                  "provone:wasAssociatedWith\n","provone:wasInformedBy\n","provone:isPartOf\n",
+                  "provone:hadMember\n","cwfo:hasOutData\n","cwfo:hasInData\n")
+    write(DefaultAssociationlist,file="DefaultAssociationNames.txt")
+
+    Associationlist.df=read.table("DefaultAssociationNames.txt",sep=",",header=TRUE)
+
+   # whether use default association list or not
+    if (UserANM==FALSE){
+       Associationlist.df=read.table("DefaultAssociationNames.txt",sep=",",header=TRUE)
+     }
+    else if (UserANM==TRUE) {
+       Associationlist.df=read.table("AssociationNames.txt",sep=",",header=TRUE)
+       }
+    Associationlist=Associationlist.df$AssociationName
+
+    # creating a default association library:
+    DefaultAL=paste0("ParentClass,","ChildClass,","Ways,","Property,","ReverseProperty\n",
+          "\"provone:Process\",","\"provone:Process\",","2,","\"provone:hasSubProcess\",","\"provone:wasDerivedFrom\"\n",
+          "\"provone:Process\",","\"provone:Data\",","2,","\"provone:wasDerivedFrom\",","\"provone:hasMember\"\n",
+          "\"provone:Process\",","\"provone:Visualization\",","2,","\"provone:wasDerivedFrom\",","\"provone:hasMember\"\n")
+    write(DefaultAL,file="DefaultAssociationLibrary.txt")
+
+    nodesnames=nodesclasses=nodesfrom=nodesto=nodesproperty=parentclass=property=line_rdf_vector=title1=esci=""
+    templevel=parentlevel=parentindex=tempwordlist=0
+    levelvector=rep(0,7)
+
+    # get property of association by using parent entity class and child entity class automatically
+    for (j in 1:length(infolist)){
+      AssociationNUM=firstmeet=trigger1=0
+      line_rdf=classeswords=""
+      title0=infolist[[j]][2]
+      title1[j]=title0
+     ID=infolist[[j]][3]
+      parentlevel=templevel
+      templevel=infolist[[j]][1]
+      tempclass=infolist[[j]][4]
+      # levelvector saves existing levels
+     if (infolist[[j]][1]==1){
+        if (levelvector[1]==0){
+         levelvector[1]=j
+       }
+      }
+     if (infolist[[j]][1]==2){
+       if (levelvector[2]==0){
+          levelvector[2]=j
+       }
+      }
+      if (infolist[[j]][1]==3){
+       if (levelvector[3]==0){
+         levelvector[3]=j
+       }
+      }
+      if (infolist[[j]][1]==4){
+       if (levelvector[4]==0){
+          levelvector[4]=j
+       }
+     }
+     if (infolist[[j]][1]==5){
+       if (levelvector[5]==0){
+          levelvector[5]=j
+       }
+      }
+      if (infolist[[j]][1]==6){
+       if (levelvector[6]==0){
+         levelvector[6]=j
+       }
+      }
+      if (infolist[[j]][1]==7){
+       if (levelvector[7]==0){
+         levelvector[7]=j
+        }
+      }
+      # replace existing levels when found a new one
+      if (as.numeric(parentlevel)!=0){
+       if (as.numeric(templevel)>as.numeric(parentlevel)){
+          parentindex=j-1
+         parentclass=infolist[[j-1]][4]
+       }
+       else if (templevel==parentlevel){
+          parentindex=levelvector[as.numeric(templevel)-1]
+          parentclass=infolist[[as.numeric(parentindex)]][4]
+        }
+        else {
+         levelvector[as.numeric(templevel)]=j
+         parentindex=levelvector[as.numeric(templevel)-1]
+         parentclass=infolist[[parentindex]][4]
+        }
+     }
+     # judge association:
+     if (UserAL==FALSE){
+        AssociationsLib=read.table("DefaultAssociationLibrary.txt",sep=",",header=TRUE)
+      }
+      else if (UserAL==TRUE) {
+         AssociationsLib=read.table("AssociationLibrary.txt",sep=",",header=TRUE)
+      }
+      tempPwordlist=which(AssociationsLib$ParentClass==parentclass)
+      tempwordlist=which(AssociationsLib$ChildClass[tempPwordlist]==tempclass)
+      # whether the relationship between parent and child classes are in association library
+      if (length(tempwordlist)>1){
+        AssociationNUM=tempPwordlist[min(tempwordlist)]
+      }
+      else if (length(tempwordlist)==1){
+        AssociationNUM=tempPwordlist[tempwordlist]
+      }
+      # get association property and other information if it is in association library
+      if (AssociationNUM>0){
+        property=as.character(AssociationsLib$Property[AssociationNUM])
+        # two ways association
+       if (AssociationsLib$Ways[AssociationNUM]==2){
+          nodesfrom=paste0(nodesfrom,infolist[[as.numeric(parentindex)]][2]," ")
+          nodesto=paste0(nodesto,infolist[[j]][2]," ")
+          nodesproperty=paste0(nodesproperty,property," ")
+          nodesfrom=paste0(nodesfrom,infolist[[j]][2]," ")
+          nodesto=paste0(nodesto,infolist[[as.numeric(parentindex)]][2]," ")
+          nodesproperty=paste0(nodesproperty,AssociationsLib$ReverseProperty," ")
+       }
+        # one way association
+        else if (AssociationsLib$Ways[AssociationNUM]==1){
+          nodesfrom=paste0(nodesfrom,infolist[[as.numeric(parentindex)]][2]," ")
+          nodesto=paste0(nodesto,infolist[[j]][2]," ")
+          nodesproperty=paste0(nodesproperty,property," ")
+        }
+
+      }
+      # if using default association to fill the nonexistent association in the library
+      else if ((fillAssociation==TRUE)&(as.numeric(parentlevel)!=0)){
+        property="str:has"
+        nodesfrom=paste0(nodesfrom,infolist[[as.numeric(parentindex)]][2]," ")
+        nodesto=paste0(nodesto,infolist[[j]][2]," ")
+        nodesproperty=paste0(nodesproperty,property," ")
+       nodesfrom=paste0(nodesfrom,infolist[[j]][2]," ")
+        nodesto=paste0(nodesto,infolist[[as.numeric(parentindex)]][2]," ")
+        nodesproperty=paste0(nodesproperty,"str:belongTo"," ")
+     }
+      #print ("This is levelvector")
+      #print (levelvector)
+      #print ("This is from")
+      #print (nodesfrom)
+      #print ("This is to")
+      #print (nodesto)
+      #print ("This is property")
+      #print (nodesproperty)
+  # deal with other information besides title, id and class
+  for (i in 4:length(infolist[[j]])){
+    tempword=""
+    tempentity=""
+    temp_line=""
+    if (i==4){
+      tempword=infolist[[j]][4]
+      nodesnames=paste0(nodesnames,title0," ")
+      classeswords=paste0(tempword)
+
+      entityname=paste0(prefix,":",ID)
+      title=paste0(entityname)
+      line_rdf=paste0("\n ",title," a ",tempword)
+
+      # print content depends on whether it is the last one or not
+      if (i==length(infolist[[j]])){
+        nodesclasses=paste0(nodesclasses,classeswords," ")
+        line_rdf=paste(line_rdf,";","\n")
+        title0=paste0("\"",title0,"\"")
+        # add title as rdfs:label in the output file
+        #line_rdf=paste(line_rdf,"\t","rdfs:label",title0,".","\n")#,".","\n")
+      }
+      else{
+        line_rdf=paste(line_rdf)
+      }
+
+    }# out of if i==4
+    else { # i>4
+      tempword=infolist[[j]][i]
+      # find manually input values
+      print ("This is j")
+      print (j)
+      print ("This is tempword (tempword=infolist[[j]][i])")
+      print (tempword)
+      print ("This is infolist[[j]]")
+      print (infolist[[j]])
+      if (grepl("=",tempword)){
+        print ("This is j get equal mark")
+        print (j)
+        # print founded class or classes in output file
+        firstmeet=firstmeet+1
+        if (firstmeet==1){
+          line_rdf=paste0(line_rdf,";","\n")
+        }
+
+        tempwordlist=strsplit(tempword,"=")
+        # if the manually typed input is an association, add this relation into nodes data frame
+        print (tempwordlist[[1]][1])
+        print (Associationlist)
+        print (tempwordlist[[1]][1] %in% Associationlist)
+        if (tempwordlist[[1]][1] %in% Associationlist)
+        {
+          trigger1=1
+          nodesfrom=paste0(nodesfrom,title0," ")
+          nodesto=paste0(nodesto,tempwordlist[[1]][2]," ")
+          nodesproperty=paste0(nodesproperty,tempwordlist[[1]][1]," ")
+        }
+        else{
+          temp_line=paste(tempwordlist[[1]][1],tempwordlist[[1]][2])
+        }
+        if (i==length(infolist[[j]])){
+          nodesclasses=paste0(nodesclasses,classeswords," ")
+          if (nchar(temp_line)>0){
+            temp_line=paste("\t",temp_line,";","\n")
+          }
+          if (trigger1==0){
+            esci=paste(esci,j)
+            #title0=paste0("\"",title0,"\"")
+            #temp_line=paste(temp_line,"\t","rdfs:label!!!",title0,".","\n")#,".","\n")
+          }
+
+        }
+        else {
+          if (nchar(temp_line)>0){
+            temp_line=paste("\t",temp_line,";","\n")
+          }
+        }
+      }
+      # for multiple classes, paste each one after first class, seperate by comma
+      else {
+        classeswords=paste0(classeswords,",",tempword)
+        line_rdf=paste0(line_rdf,", ",tempword)
+        if (i==length(infolist[[j]])){
+          nodesclasses=paste0(nodesclasses,classeswords," ")
+          if (nchar(temp_line)>0){
+            temp_line=paste("\t",temp_line,";","\n")
+          }
+          #title0=paste0("\"",title0,"\"")
+          temp_line=paste(temp_line,";\n")#,"\t","rdfs:label",title0,";","\n")
+        }
+        else {
+        }
+      }
+    }
+    line_rdf=paste(line_rdf,temp_line)
+    # save entities in a character sting variable
+    line_rdf_vector[j]=line_rdf
+  }
+}
+# get titles and IDs
+titles=IDs=0
+for (i in 1:length(infolist)){
+  titles[i]=infolist[[i]][2]
+  IDs[i]=infolist[[i]][3]
+}
+
+library(igraph)
+
+nodesfrom2=strsplit(nodesfrom," ")
+nodesto2=strsplit(nodesto," ")
+nodesproperty2=strsplit(nodesproperty," ")
+exceptnum=except=nodesfrom3=nodesto3=nodesproperty3=nodesnm=0
+exceptwords=c("str:has","str:belongTo")
+
+# use a diagonal matrix to find duplicate nodes when users manually typed in associations, and replace the
+# default associations "str:has" and "str:belongTo" by user-defined associations
+if ((length(nodesfrom2[[1]])-1)>=1){
+for (i in 1:(length(nodesfrom2[[1]])-1)){
+  for (j in ((i+1):length(nodesfrom2[[1]]))){
+    if ((i!=j)&(length(nodesfrom2[[1]])>=j)&(length(nodesto2[[1]])>=j)){
+      if((nodesfrom2[[1]][i]==nodesfrom2[[1]][j])&(nodesto2[[1]][i]==nodesto2[[1]][j])){
+        exceptnum=exceptnum+1
+        if (nodesproperty2[[1]][i] %in% exceptwords){
+          except[exceptnum]=i
+        }
+        else { except[exceptnum]=j}
+      }
+    }
+  }
+}
+  }
+
+nodesnames2=strsplit(nodesnames," ")
+
+# add nonexisting nodes to graph, even if they are not inserted as an entity
+for (i in 1:length(nodesfrom2[[1]])){
+  if (i %in% except){}
+  else {
+    nodesnm=nodesnm+1
+    for (j in 1:length(IDs)){
+      if (nodesfrom2[[1]][i]==IDs[j]){
+        nodesfrom2[[1]][i]=titles[j]
+        }
+      else if (nodesto2[[1]][i]==IDs[j]){
+        nodesto2[[1]][i]=titles[j]
+        }
+    }
+    # add nonexisting nodes to graph, set class as AutoAdded
+
+    if (nodesfrom2[[1]][i] %in% nodesnames2[[1]]){}
+    else {
+      nodesnames=paste0(nodesnames,nodesfrom2[[1]][i]," ")
+      nodesclasses=paste0(nodesclasses,"AutoAdded"," ")
+    }
+    if (nodesto2[[1]][i] %in% nodesnames2[[1]]){}
+    else {
+      nodesnames=paste0(nodesnames,nodesto2[[1]][i]," ")
+      nodesclasses=paste0(nodesclasses,"AutoAdded"," ")
+    }
+    nodesfrom3[nodesnm]=nodesfrom2[[1]][i]
+    nodesto3[nodesnm]=nodesto2[[1]][i]
+    nodesproperty3[nodesnm]=nodesproperty2[[1]][i]
+    }
+}
+
+
+nodesnames2=strsplit(nodesnames," ")
+nodesclasses2=strsplit(nodesclasses," ")
+
+# add nodes and nesting information into a data frame
+nodes <- data.frame(name = return_space(nodesnames2[[1]]),
+                    class = nodesclasses2[[1]])
+
+nesting <- data.frame(from = return_space(nodesfrom3),
+                      to = return_space(nodesto3),
+                      property = nodesproperty3)
+
+g3 <- graph_from_data_frame(nesting, directed=TRUE, vertices=nodes)
+E(g3)$label <- E(g3)$property
+
+#print (nodes)
+#print (nesting)
+#print (esci)
+# append manually type-in information to each entity
+if (length(esci)>0){
+escj=strsplit(esci," ")
+#print (escj)
+for (i in 1:length(line_rdf_vector)){
+  if (i %in% escj[[1]]){
+    #print (i)
+    #line_rdf_vector[i]=paste(line_rdf_vector[i],"\t","rdfs:label","\"",title1[i],"\"",".","\n")
+    tempnumber=which(nodesfrom3==titles[i])
+  if (length(tempnumber)>0){
+  for (j in 1:length(tempnumber)){
+    #print ("j loop")
+    #print (j)
+    if (length(IDs[which(titles==nodesto3[tempnumber[j]])])>0){
+      entityname2=paste0(prefix,":",IDs[which(titles==nodesto3[tempnumber[j]])])
+    }
+    else {
+      entityname2=paste0(prefix,":",nodesto3[tempnumber[j]])
+    }
+    if (j==length(tempnumber)){
+      #print ("j=l")
+      #print (j)
+      #print (tempnumber)
+      #print (i)
+      #print (line_rdf_vector[i])
+      line_rdf_vector[i]=paste(line_rdf_vector[i],"\t",nodesproperty3[tempnumber[j]],entityname2,";","\n")
+      line_rdf_vector[i]=paste(line_rdf_vector[i],"\t","rdfs:label","\"",title1[i],"\"",".","\n")
+    }
+    else{
+      #print ("j!=l")
+      #print (j)
+      #print (tempnumber)
+      #print (i)
+      #print (line_rdf_vector[i])
+      line_rdf_vector[i]=paste(line_rdf_vector[i],"\t",nodesproperty3[tempnumber[j]],entityname2,";","\n")
+    }
+    }
+  }
+  else # !if (length(tempnumber)>0)
+  {line_rdf_vector[i]=paste(line_rdf_vector[i],"\t","rdfs:label","\"",title1[i],"\"",".","\n")}
+
+
+
+  }
+  else{
+  tempnumber=which(nodesfrom3==titles[i])
+  if (length(tempnumber)>0){
+  for (j in 1:length(tempnumber)){
+    if (length(IDs[which(titles==nodesto3[tempnumber[j]])])>0){
+      entityname2=paste0(prefix,":",IDs[which(titles==nodesto3[tempnumber[j]])])
+    }
+    else {
+      entityname2=paste0(prefix,":",nodesto3[tempnumber[j]])
+    }
+    if (j==length(tempnumber)){
+      #print ("!")
+      #print (j)
+      #print (tempnumber)
+      #print (i)
+      #print (line_rdf_vector[i])
+      line_rdf_vector[i]=paste(line_rdf_vector[i],"\t",nodesproperty3[tempnumber[j]],entityname2,";","\n")
+      line_rdf_vector[i]=paste(line_rdf_vector[i],"\t","rdfs:label","\"",title1[i],"\"",".","\n")
+    }
+    else{
+      #print ("!")
+      #print (j)
+      #print (tempnumber)
+      #print (i)
+      #print (line_rdf_vector[i])
+      line_rdf_vector[i]=paste(line_rdf_vector[i],"\t",nodesproperty3[tempnumber[j]],entityname2,";","\n")
+    }
+    }
+  }
+    else # !if (length(tempnumber)>0)
+  {line_rdf_vector[i]=paste(line_rdf_vector[i],"\t","rdfs:label","\"",title1[i],"\"",".","\n")}
+  }#else
+
+}
+  }
+
+
+# convert %20 to space
+for (i in 1:length(line_rdf_vector)){
+  line_rdf_vector[i]=return_space(line_rdf_vector[i])
+  lines_rdf=paste(lines_rdf,line_rdf_vector[i])
+}
+# generate RDF file
+if (rdf=="ttl"){
+  write(lines_rdf,file=outputfile2)
+print("Create a RDF file successfully. Please find the output file in:")
+print(getwd())
+print(paste("Your file name is:",outputfile2))
+}
+if (graph){
+  if (HideAssociation==TRUE){
+    nestinghide <- data.frame(from = nesting$from,
+                      to = nesting$to,
+                      property = rep("",nrow(nesting)))
+
+    g3 <- graph_from_data_frame(nestinghide , directed=TRUE, vertices=nodes)
+  }
+
+
+E(g3)$label <- E(g3)$property
+print(g3, e=TRUE, v=TRUE)
+plot(g3, edge.arrow.size=.2, edge.curved=.4)
+  }
+}
+  # original below (delet else):
+  else if (dir_out == "" && file_out == "object") {
     lines
-  } else {
+  }
+  else if(rdf=="YW"){
+    #YWoutline=readLines("YWoutline.txt")
+    datetime <- format(Sys.time(), "%Y_%m_%d_%H_%M_%S")
+    fileformat=".ttl" #".txt"
+    outputfile2 <- paste("RDF_output_file_",datetime,fileformat,sep="")
+    write(lines,file=outputfile2)
+
+
+    YWoutline=readLines(outputfile2)
+    vector2list=function(wordvector){
+      for (i in 1:length(wordvector)){
+        wordvector[i]
+      }
+    }
+
+    beginindex=grep("@begin",YWoutline)
+    endindex=grep("@end",YWoutline)
+
+    #beginindex=c(1,7,14,19,21)
+    #endindex=c(12,17,25,26,27)
+    content=as.character()
+    addheader=as.character()
+    if (length(beginindex)>1){
+      i=1
+      j=1
+      l=length(endindex)
+      leveldf=data.frame(start=rep(0,length(beginindex)),end=rep(0,length(endindex)))
+      for (k in 1:(length(beginindex)+length(endindex))){
+        if (i>length(beginindex)&j<=length(endindex)){
+          for (m in nrow(leveldf):1){
+            if (leveldf[m,2]==0){
+              leveldf[m,2]=endindex[j]
+              j=j+1
+            }
+          }
+        }
+        else{
+          if (!is.na(beginindex[i])){
+            if(beginindex[i]<endindex[j]){
+              leveldf[i,1]=beginindex[i]
+              i=i+1
+            }
+            else if(beginindex[i]>endindex[j]){
+              leveldf[i-1,2]=endindex[j]
+              j=j+1
+            }
+          }
+        }
+      }
+    }
+    leveldf
+
+    list1=list(0)
+
+    for (i in 1:nrow(leveldf)){
+      jlines=as.numeric()
+      templines=""
+      ilines=c(leveldf$start[i]:leveldf$end[i])
+      templines=YWoutline[ilines]
+      for (j in 1:nrow(leveldf)){
+        if (i!=j&(leveldf$start[j]>leveldf$start[i]&leveldf$end[j]<leveldf$end[i])){
+          jlines=c(jlines,c(leveldf$start[j]:leveldf$end[j]))
+          templines=templines[-jlines]
+        }
+      }
+
+      delines=as.numeric()
+      j=0
+      for (j in 1:length(templines)){
+        if (templines[j]==""){delines=c(delines,j)}
+      }
+      if(length(delines)>0){
+        templines=templines[-delines]
+
+      }
+      #print(templines)
+
+
+      if (i==1){
+        #print (1)
+        header=as.character()
+        header=paste0(" @prefix myentity:    <http://www.myentity.example.com/> . \n",
+                      " @prefix provone: <http://dataone.org/ns/provone#>  . \n")
+        j=0
+        for (j in 1:length(templines)){
+          if(length(strsplit(templines[j],"@begin ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              entityname=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              entityname=strsplit(strsplit(templines[j],"@begin ")[[1]][2]," ")[[1]][1]
+            }
+            header=paste0(header, "\n","myentity",":",entityname," a ","provone:Workflow ")
+          }
+          else if (length(strsplit(templines[j],"@in ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              inputdata=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              inputdata=strsplit(strsplit(templines[j],"@in ")[[1]][2]," ")[[1]][1]
+            }
+            header=paste0(header," ;\n\t","provone:used ","\"",inputdata,"\" ")
+          }
+          else if (length(strsplit(templines[j],"@param ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              inputparam=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              inputparam=strsplit(strsplit(templines[j],"@param ")[[1]][2]," ")[[1]][1]
+            }
+            header=paste0(header,";\n\t","provone:used ","\"",inputparam,"\" ")
+          }
+          else if (length(strsplit(templines[j],"@out ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              output=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              output=strsplit(strsplit(templines[j],"@out ")[[1]][2]," ")[[1]][1]
+            }
+            header=paste0(header,";\n\t","provone:generate ","\"",output,"\" ")
+          }
+          else if (length(strsplit(templines[j],"@end ")[[1]])>1){
+
+            #if(length(strsplit(templines[j],"@as ")[[1]])>1){
+            #  endentity=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            #}
+            #else {
+            #  endentity=strsplit(strsplit(templines[j],"@end ")[[1]][2]," ")[[1]][1]
+            #}
+            #header=paste0(header,".\n")
+          }
+        }
+      }
+      else{
+
+        for (j in 1:length(templines)){
+          if(length(strsplit(templines[j],"@begin ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              entityname=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              entityname=strsplit(strsplit(templines[j],"@begin ")[[1]][2]," ")[[1]][1]
+            }
+            content=paste0(content, "\n","myentity",":",entityname," a ","provone:ProcessExec ")
+            addheader=paste0(addheader," ;\n\t","provone:wasInformedBy"," myentity",":",entityname)
+          }
+          else if (length(strsplit(templines[j],"@in ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              inputdata=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              inputdata=strsplit(strsplit(templines[j],"@in ")[[1]][2]," ")[[1]][1]
+            }
+            content=paste0(content," ;\n\t","provone:used ","\"",inputdata,"\" ")
+          }
+          else if (length(strsplit(templines[j],"@param ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              inputparam=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              inputparam=strsplit(strsplit(templines[j],"@param ")[[1]][2]," ")[[1]][1]
+            }
+            content=paste0(content,";\n\t","provone:used ","\"",inputparam,"\" ")
+          }
+          else if (length(strsplit(templines[j],"@out ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              output=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              output=strsplit(strsplit(templines[j],"@out ")[[1]][2]," ")[[1]][1]
+            }
+            content=paste0(content,";\n\t","provone:generate ","\"",output,"\" ")
+          }
+          else if (length(strsplit(templines[j],"@end ")[[1]])>1){
+            if(length(strsplit(templines[j],"@as ")[[1]])>1){
+              endentity=strsplit(strsplit(templines[j],"@as ")[[1]][2]," ")[[1]][1]
+            }
+            else {
+              endentity=strsplit(strsplit(templines[j],"@end ")[[1]][2]," ")[[1]][1]
+            }
+            content=paste0(content,".\n")
+          }
+        }
+      }
+
+    }
+
+    YWfile=paste0(header,addheader," .\n",content)
+    #write(file,file="outputfile.ttl")
+
+    write(YWfile,file=outputfile2)
+    print("Create a RDF file successfully. Please find the output file in:")
+    print(getwd())
+    print(paste("Your file name is:",outputfile2))
+
+
+
+
+
+
+  }
+  else {
     cat(lines, file = path_out, sep = "\n")
   }
 }
@@ -381,5 +1213,26 @@ find_gran <- function(direction = "down", highest = 3, lowest = 1, lines) {
   helper_find_gran(direction)
 }
 
+# @begin EmphasizedHelloWorld @desc Display one or more greetings to the user.
+# @in provided_greeting
+# @in provided_emphasis
+# @param emphasis_count
+# @out displayed_greeting @desc Greeting displayed to user.
 
+
+# @begin emphasize_greeting @desc Add emphasis to the provided greeting
+# @in greeting @as provided_greeting
+# @in emphasis @as provided_emphasis
+# @param count @as emphasis_count
+# @out greeting @as emphasized_greeting
+
+# @end emphasize_greeting
+
+# @begin print_greeting @desc Greet the user with the emphasized message.
+# @in greeting @as emphasized_greeting
+# @out greeting @as displayed_greeting @file stream:stdout
+
+# @end print_greeting
+
+# @end EmphasizedHelloWorld
 

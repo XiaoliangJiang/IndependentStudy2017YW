@@ -1,7 +1,4 @@
 #' insert a section break with an optional title
-
-
-#   ____________________________________________________________________________
 #'
 #' A function designed to use as an RStudio
 #' \href{https://rstudio.github.io/rstudioaddins/}{add-in} for structuring code.
@@ -128,7 +125,27 @@ insert_break <- function(level,
   if (insert_with_shiny) {
     ret_value <- find_title(level)
     if (ret_value$cancel) return("")
-    title <- ret_value$text1
+##  ............................................................................
+
+    if (ret_value$add_semantics) {
+      # create fill
+      creators <- setNames(Map(create_creators,
+                               start = c("", "", "", "")
+                               ),
+                           c("get_title", "get_id", "get_class","get_attribute")
+                           )
+      tempstring=ret_value$id
+      fill <- create_fill(classes = ret_value$classes,
+                          title = ret_value$text1,
+                          id = ret_value$id,
+                          attributes = ret_value$keyvaluepairs,
+                          #json_ld = ret_value$json_ld,
+                          function_container = creators)
+
+    }
+    else {
+      fill <- ret_value$text1
+    }
     anchor_in_sep <- ret_value$anchor_in_sep
 
     # set options so anchor_in_sep is remembered
@@ -137,27 +154,24 @@ insert_break <- function(level,
     options(strcode = op)
     level <- as.numeric(unlist(strsplit(ret_value$level, ""))[nchar(ret_value$level)])
 
-
   } else {
-    title <- ""
+    fill <- ""
     anchor_in_sep <- FALSE
   }
   ### .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
   ### set parameter depending on level
-  start <- paste0(rep("#", level), collapse = "")
-  break_char = give_breakchar(level)
-  #sep = paste(rep(" ", 4 - level), collapse = "")
-  sep = paste(rep(" ", 4 - level), collapse = "")
+  #start <- paste0(rep("#", level), collapse = "")
+  start <- paste0(rep("  ", level-1), collapse = "")
+  break_char = ""#give_breakchar(level)
+  #sep = paste(rep(" ", 8 - level), collapse = "")
+  sep="#"
 
-
-
-#   ____________________________________________________________________________
-
-### .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-### create break sequence to insert
+## .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+## create break sequence to insert
   seq_break <- help_create_break(start = start,
                                  break_char = break_char,
-                                 sep = sep, anchor_in_sep = anchor_in_sep)
+                                 #sep = sep,
+                                 anchor_in_sep ="") #anchor_in_sep)
   help_insert(seq_break,
               start_row = 1,
               start_indention = Inf,
@@ -165,25 +179,27 @@ insert_break <- function(level,
               end_row = 2,
               end_indention = Inf)
 
-### .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
-### create title sequence to insert
+## .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+## create fill sequence to insert
   if (insert_with_shiny) {
     seq_title <- help_create_title(start = start,
-                                   fill = title,
+                                   fill = fill,
                                    sep = sep,
-                                   end = "####")
+                                   end = "",
+                                   enforce_length = !ret_value$add_semantics)
 
 
     if (!is.null(seq_title)) {
       help_insert(seq_title,
-                  start_row = 0,
+                 start_row = 0,
                   start_indention = Inf,
                   start_indention_margin = 0,
                   end_row = 1,
                   end_indention = Inf)
     }
-  }
+ }
 }
+
 ##  ............................................................................
 ##  help_create_break
 #' create a break sequence
@@ -202,7 +218,6 @@ help_create_break <- function(start = "##",
                               break_char = "-",
                               length = options()$strcode$char_length,
                               anchor_in_sep = FALSE) {
-  #
   if (anchor_in_sep == TRUE) {
     hash <- get_anchor(enclosing_start = "#<",
                        enclosing_end = ">#",
@@ -216,20 +231,22 @@ help_create_break <- function(start = "##",
     hash <- NULL
   }
 
-  breaks <- rep(break_char,
+  breaks <- ""#rep(break_char,
                 # ceiling necessary because patern like ". ." will get cut before
                 # current_length
-                ceiling((current_length - nchar(start) - nchar(sep))/nchar(break_char)))
+#                ceiling((current_length - nchar(start) - nchar(sep))/nchar(break_char)))
   # if last element in breaks is space, replace it with first element in break_char
-  breaks <- unlist(strsplit(breaks, "")) # decompose
-  if (breaks[length(breaks)] == " ") {
-    breaks[length(breaks)] <- substring(break_char, 1, 1)
-  }
-  breaks <- paste0(breaks, collapse = "")
+#  breaks <- unlist(strsplit(breaks, "")) # decompose
+#  if (breaks[length(breaks)] == " ") {
+#    breaks[length(breaks)] <- substring(break_char, 1, 1)
+#  }
+#  breaks <- paste0(breaks, collapse = "")
   # paste it all together
-  temp <- paste0(c(start, sep, breaks, " ", hash, " ", breaks), collapse = "")
-  substring(temp, 1, length) # truncate pattern to exacly current_length
+#  temp <- paste0(c(start, sep, breaks, " ", hash, " ", breaks), collapse = "")
+temp=""
+    substring(temp, 1, length) # truncate pattern to exacly current_length
 }
+
 ##  ............................................................................
 ##  help_create_title
 #' create a title sequence
@@ -249,18 +266,20 @@ help_create_title <- function(start = "##",
                               fill = "this is a title",
                               length = options()$strcode$char_length,
                               sep = "sep_here",
-                              end = "----") {
+                              end = "----",
+                              enforce_length = TRUE) {
   # create a text that starts with start, adds sep and then spaces up to margin
   # too long texts will be truncated
   if (fill == "") return(NULL)
+
   text <- paste0(start, sep, fill)
 
   extension <- paste0(rep(" ",
-                          max(0, length - length(start) - length(end) - length(sep))),
+                          max(0, length - nchar(end) - nchar(text))),
                       collapse = "")
+  str_length <- ifelse(enforce_length, length - nchar(end), nchar(extension) + nchar(text))
 
-
-  paste0(substring(paste0(text, extension), 1, length - nchar(end)), end)
+  paste0(substring(paste0(text, extension), 1, str_length), end)
 }
 
 #' find breakchar for level
@@ -271,9 +290,14 @@ help_create_title <- function(start = "##",
 give_breakchar <- function(level) {
   switch(as.character(level),
        "1" = "_",
-       "2" = ".",
-       "3" = ". ")
+       "2" = "._",
+       "3" = ".._",
+       "4" = "..._",
+       "5" = "...._",
+       "6" = "....._",
+       "7" = "......_")
 }
+
 ##  ............................................................................
 ##  help insert                                                             ----
 # one row below and jumps another row down
@@ -305,14 +329,11 @@ help_insert <- function(x,
   # insert the margin at the target row
   insertText(c(current_row  + start_row, start_indention),
              paste(rep(" ", start_indention_margin), collapse = ""))
-
-
   # insert the separator at the beginning of the new line, so \n gets
   # shifted down one
   insertText(c(current_row  + start_row, start_indention), x)
   # move the cursor one line down
   setCursorPosition(c(current_row + end_row, end_indention), id = NULL)
-
 }
 
 #   ____________________________________________________________________________
@@ -323,16 +344,23 @@ help_insert <- function(x,
 #' A helper function to create a pane to enter a title name
 #' @param level The level of the code break to be inserted
 #' @import shiny miniUI
+#' @importFrom stats setNames
 #' @keywords internal
 find_title <- function(level) {
-  #choices_input <- paste("level", 1:3)
-  choices_input <- paste("level", 1:3)
+  #XJ Original codes:
+  #styles_input <- paste(c("Default","JSON-LD"))
+  choices_input <- paste("level", 1:7)
+
+  #class_choices <- paste(c("provone:Process","provone:InputPort","provone:OutputPort","provone:DataLink","provone:SeqCtrlLink",
+  #                         "provone:Workflow","provone:User","provone:ProcessExec","provone:Data","provone:Collection",
+  #                         "provone:Visualization","provone:Program","prov:Plan"))
+  class_choices <- paste(c("@begin","@in","@out","@param","@end"))
   ui <- miniPage(
     miniContentPanel(
       fillCol(
         fillRow(
-          text_focus("text1", label = " ", value = "",
-                     placeholder = "Your section title",
+          text_focus("text1", label = "name", value = "",
+                     placeholder = "Your section name",
                      width = "320px", height = "35px"),
           selectInput("level", " ", width = "100px",
                       choices = choices_input,
@@ -342,44 +370,93 @@ find_title <- function(level) {
         fillRow(
           miniTitleBarCancelButton(),
           miniTitleBarButton("done", "Done"),
+          miniTitleBarButton("show", "Help"),
           checkboxInput("anchor_in_sep", "Add anchor",
                         value = options()$strcode$anchor_in_sep,
                         width = "100px"),
-          p("Hit enter (instead of clicking Done) to confirm the title. An empty
-            field will create a separator with no title."),
-          flex = c(1, 1, 2, 3)
-
-          )
+          checkboxInput("add_semantics", "YesWorkflow",
+                        value = FALSE,
+                        width = "150px"),
+          flex = c(1, 1, 1, 1.5, 2)
+        ),
+        fillRow(
+          conditionalPanel("input.add_semantics",
+                           text_focus("pandoc_id",
+                                      label = "as",
+                                      value = "",#get_anchor("", "", nchar_output = 5),
+                                      placeholder = "enter an alternative name used in workflow",
+                                      width = "320px",
+                                      height = "35px"),
+                           selectizeInput("classes",
+                                          label = "classes",
+                                          choices = setNames(rm_space(class_choices),
+                                                             class_choices),
+                                          width = "320px",
+                                          multiple = TRUE),
+                           text_focus("keyvaluepairs",
+                                      label = "descriptions",
+                                      value = "",
+                                      placeholder = "enter an optional descriptions for your entity",
+                                      width = "320px",
+                                      height = "35px")
+                           #selectizeInput("descriptions", width = "320px",
+                           #               label = "optional descriptions for your entity",
+                           #               choices = "",
+                           #               multiple = FALSE,#TRUE,
+                           #               options = list(create = TRUE,
+                           #                              persist = FALSE,
+                           #                              createFilter = "")
+                           #                )#"^.+\\s*=\\s*.+$"))#,
+                           #checkboxInput("json_ld", "JSON-LD",width = "80px")
+                           )
+        )
+        ,flex = c(0.8, 0.5, 3)
       )
     )
-    )
+  )
 
   server <- function(input, output, session) {
+    listout <- quote(list(text1  = gsub("\n", "", input$text1),
+                    cancel = input$cancel,
+                    anchor_in_sep = input$anchor_in_sep,
+                    add_semantics = input$add_semantics,
+                    id = input$pandoc_id,
+                    level  = input$level,
+                    classes = input$classes,
+                    keyvaluepairs = input$keyvaluepairs#,
+                          #json_ld = input$json_ld
+                         ))
+
 
     observeEvent(input$done, {
-      stopApp(list(text1  = input$text1,
-                   cancel = input$cancel,
-                   anchor_in_sep = input$anchor_in_sep,
-                   level  = input$level))
+      stopApp(eval(listout))
+    })
+
+    observeEvent(input$show, {
+      showModal(modalDialog(
+        title = "Help",
+        "Hit enter (instead of clicking Done) to confirm the title.
+        An empty field will create a separator with no title.
+        If the field of the section identifier remains empty, a
+        hash is generated as an identifier. Valid key value pairs
+        take the form key = value where key and value can only contain
+        numbers and letters"
+      ))
     })
 
     observeEvent(input$text1, {
       if(!is.null(input$text1) && any(grep("\n", input$text1))) {
-        stopApp(list(text1 = gsub("\n", "", input$text1),
-                     cancel = input$cancel,
-                     anchor_in_sep = input$anchor_in_sep,
-                     level  = input$level))
+        stopApp(eval(listout))
       }
     })
 
     observeEvent(input$cancel, {
-      stopApp(list(text1 = "",
-                   cancel = input$cancel))
+      stopApp(eval(listout))
     })
   }
 
   runGadget(ui, server,
-            viewer = paneViewer(minHeight = 200),
+            viewer = paneViewer(minHeight = 400),
             stopOnCancel = FALSE)
 }
 

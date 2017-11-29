@@ -9,3 +9,4 @@
 #' @docType package
 #' @name strcode
 "_PACKAGE"
+
