@@ -280,7 +280,7 @@ sum_str_helper <- function(path_in,
 ##  get pattern
 
   lines <- readLines(con = path_in)
-  sub_pattern <- "^\\s*# @\\w"
+  sub_pattern <- "^\\s*#\\s*@\\w"
   cand <- grep(sub_pattern, lines, perl = FALSE) # extract candiates id
   if (length(cand) == 0) {
     return(warning("No line matching the required pattern",
@@ -289,49 +289,49 @@ sum_str_helper <- function(path_in,
 
 ##  .................. #< 3b5746a13447c5269736b631d6a9370d ># ..................
 ##  replace hashed seps                                                     ####
-if (rm_break_anchors) {
+#if (rm_break_anchors) {
   # extract candidates for replacement
-  hash_candid <- intersect(grep("(\\s#<\\s[0-9a-z]{1,33}\\s>#\\s)", lines, perl = TRUE),
-                           cand)
+  #hash_candid <- intersect(grep("(\\s#<\\s[0-9a-z]{1,33}\\s>#\\s)", lines, perl = TRUE),
+  #                         cand)
   # get their level
-  lvl <- nchar(gsub("^(#+)\\s.*$", "\\1", lines[hash_candid], perl = TRUE))
-  replacement <- vapply(lvl, function(x) help_create_break(start = paste0(rep("#", x), collapse = ""),
-                                           break_char = give_breakchar(x),
-                                           sep = paste(rep(" ", 8 - x), collapse = ""), anchor_in_sep = FALSE),
-                  FUN.VALUE = character(1))
-  lines[hash_candid] <- replacement
+#  lvl <- nchar(gsub("^(#+)\\s.*$", "\\1", lines[hash_candid], perl = TRUE))
+#  replacement <- vapply(lvl, function(x) help_create_break(start = paste0(rep("#", x), collapse = ""),
+#                                           break_char = give_breakchar(x),
+#                                           sep = paste(rep(" ", 8 - x), collapse = ""), anchor_in_sep = FALSE),
+#                  FUN.VALUE = character(1))
+#  lines[hash_candid] <- replacement
 
-}
+#}
 ##  ............................................................................
 ##  modify pattern according to arguments
 ### .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 ### getting the granularity right
   remove <- c()
-  if (granularity < 3) { # if there are any lines to remove
-    hashes <- (granularity + 1):3
-    spaces <-  8- hashes
+  #if (granularity < 3) { # if there are any lines to remove
+  #  hashes <- (granularity + 1):3
+  #  spaces <-  8- hashes
 
     # this variable stores the indices of all lines that should be dropped.
-    for (i in 1:length(hashes)) {
-      sub_pattern <- paste0("^#{", hashes[i], "}\\s{", spaces[i], "}.*$")
-      remove <- append(remove, grep(sub_pattern, lines, perl = TRUE))
-    }
-  }
+    #for (i in 1:length(hashes)) {
+    #  sub_pattern <- paste0("^#{", hashes[i], "}\\s{", spaces[i], "}.*$")
+    #  remove <- append(remove, grep(sub_pattern, lines, perl = TRUE))
+    #}
+  #}
 
 ### .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 ### remove last separator
-  if (last_sep == FALSE) {
-    hashes <- min(find_gran("down", lines = lines), granularity)
-    spaces <- 8 - hashes
-    sub_pattern <- paste0("^#{", hashes, "}\\s{", spaces, "}[\\._].*$")
-    remove <- append(remove, grep(sub_pattern, lines, perl = TRUE))
-  }
+  #if (last_sep == FALSE) {
+  #  hashes <- min(find_gran("down", lines = lines), granularity)
+  #  spaces <- 8 - hashes
+  #  sub_pattern <- paste0("^#{", hashes, "}\\s{", spaces, "}[\\._].*$")
+  #  remove <- append(remove, grep(sub_pattern, lines, perl = TRUE))
+  #}
 
 ##  ............................................................................
 ##  select elements that "survived all tests"
-  tokeep <- setdiff(cand, remove)
-  lines <- lines[tokeep]
-
+  #tokeep <- setdiff(cand, remove)
+  #lines <- lines[tokeep]
+lines=lines[cand]
 ### .. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 ### width adjust line_nr, title, output path, header
 
@@ -373,16 +373,16 @@ if (rm_break_anchors) {
 
   lines <- substring(lines, 1, width)
 
-  if (line_nr == TRUE) {
-    lines <- paste(tokeep, lines, sep = "\t")
-  }
+  #if (line_nr == TRUE) {
+    #lines <- paste(tokeep, lines, sep = "\t")
+  #}
 
-  if (header == TRUE) {
-    lines <- append(c("line  level section"), lines)
-  }
-  if (title == TRUE) {
-    lines <- append(paste0("Summarized structure of ", path_in, "\n"), lines)
-  }
+  #if (header == TRUE) {
+  #  lines <- append(c("line  level section"), lines)
+  #}
+  #if (title == TRUE) {
+  #  lines <- append(paste0("Summarized structure of ", path_in, "\n"), lines)
+  #}
 
 ##  ............................................................................
 ##  output the pattern
@@ -971,13 +971,11 @@ plot(g3, edge.arrow.size=.2, edge.curved=.4)
     write(lines,file=outputfile2)
 
 
-    YWoutline=readLines(outputfile2)
-    vector2list=function(wordvector){
-      for (i in 1:length(wordvector)){
-        wordvector[i]
-      }
-    }
-
+    YWoutline1=readLines(outputfile2)
+    print(YWoutline1)
+    YWoutline=YWoutline1
+    print(YWoutline)
+    #print(YWoutline)
     beginindex=grep("@begin",YWoutline)
     endindex=grep("@end",YWoutline)
 
@@ -1001,6 +999,7 @@ plot(g3, edge.arrow.size=.2, edge.curved=.4)
         }
         else{
           if (!is.na(beginindex[i])){
+
             if(beginindex[i]<endindex[j]){
               leveldf[i,1]=beginindex[i]
               i=i+1
@@ -1031,14 +1030,15 @@ plot(g3, edge.arrow.size=.2, edge.curved=.4)
 
       delines=as.numeric()
       j=0
+
       for (j in 1:length(templines)){
         if (templines[j]==""){delines=c(delines,j)}
       }
+
       if(length(delines)>0){
         templines=templines[-delines]
 
       }
-      #print(templines)
 
 
       if (i==1){
@@ -1212,27 +1212,4 @@ find_gran <- function(direction = "down", highest = 3, lowest = 1, lines) {
   }
   helper_find_gran(direction)
 }
-
-# @begin EmphasizedHelloWorld @desc Display one or more greetings to the user.
-# @in provided_greeting
-# @in provided_emphasis
-# @param emphasis_count
-# @out displayed_greeting @desc Greeting displayed to user.
-
-
-# @begin emphasize_greeting @desc Add emphasis to the provided greeting
-# @in greeting @as provided_greeting
-# @in emphasis @as provided_emphasis
-# @param count @as emphasis_count
-# @out greeting @as emphasized_greeting
-
-# @end emphasize_greeting
-
-# @begin print_greeting @desc Greet the user with the emphasized message.
-# @in greeting @as emphasized_greeting
-# @out greeting @as displayed_greeting @file stream:stdout
-
-# @end print_greeting
-
-# @end EmphasizedHelloWorld
 

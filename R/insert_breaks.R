@@ -388,7 +388,7 @@ find_title <- function(level) {
                                       width = "320px",
                                       height = "35px"),
                            selectizeInput("classes",
-                                          label = "classes",
+                                          label = "types",
                                           choices = setNames(rm_space(class_choices),
                                                              class_choices),
                                           width = "320px",
@@ -459,4 +459,5 @@ find_title <- function(level) {
             viewer = paneViewer(minHeight = 400),
             stopOnCancel = FALSE)
 }
+
 

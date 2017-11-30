@@ -151,16 +151,32 @@ create_fill <- function(title = "title",
         )
         )
      }
-   else {
+  #else if(length(get_id(id))>1){
+  #   with(function_container, paste(
+  #     #rm_space(get_title(title)),
+  #     encl(paste0(" ",papply(classes, get_class)),
+  #          paste0(get_title(title)),
+  #          paste0("@as ",get_id(id)),
+  #          paste0("@desc ",papply(attributes, get_attribute))
+  #     )
+  #   ))
+  # }
+else{
      with(function_container, paste(
        #rm_space(get_title(title)),
        encl(paste0(" ",papply(classes, get_class)),
             paste0(get_title(title)),
-            paste0("@as ",get_id(id)),
+            paste0("",get_id(id)),
             paste0("@desc ",papply(attributes, get_attribute))
        )
      )
      )
    }
-
 }
+
+
+
+
+
+
+
