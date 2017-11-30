@@ -1189,27 +1189,27 @@ plot(g3, edge.arrow.size=.2, edge.curved=.4)
 #' @examples
 #'   strcode:::find_gran("down", highest = 3, lowest = 1, lines = c("##  .", "#   _"))
 #' @keywords internal
-find_gran <- function(direction = "down", highest = 3, lowest = 1, lines) {
+#find_gran <- function(direction = "down", highest = 3, lowest = 1, lines) {
   # direction
-  if (direction == "up") {
-    current <- lowest
-    m <- 1
-  } else if (direction == "down") {
-    current <- highest
-    m <- -1
-  }
+#  if (direction == "up") {
+#    current <- lowest
+#    m <- 1
+#  } else if (direction == "down") {
+#    current <- highest
+#    m <- -1
+#  }
 
-    helper_find_gran <- function(direction) {
-    assert_number(current, lower = lowest, upper = highest)
-    pattern <- paste0("^", paste0(rep("#", current), collapse = ""),
-                      "\\s{", highest + 1 - current, "}.*$")
-    if (any(grepl(pattern, lines, perl = TRUE))) {
-      current
-    } else {
-      current <<- current + m * 1
-      helper_find_gran(direction = direction)
-    }
-  }
-  helper_find_gran(direction)
-}
+#    helper_find_gran <- function(direction) {
+#    assert_number(current, lower = lowest, upper = highest)
+#    pattern <- paste0("^", paste0(rep("#", current), collapse = ""),
+#                      "\\s{", highest + 1 - current, "}.*$")
+#    if (any(grepl(pattern, lines, perl = TRUE))) {
+#      current
+#    } else {
+#      current <<- current + m * 1
+#      helper_find_gran(direction = direction)
+#    }
+#  }
+#  helper_find_gran(direction)
+#}
 
