@@ -972,9 +972,9 @@ plot(g3, edge.arrow.size=.2, edge.curved=.4)
 
 
     YWoutline1=readLines(outputfile2)
-    print(YWoutline1)
+    #print(YWoutline1)
     YWoutline=YWoutline1
-    print(YWoutline)
+    #print(YWoutline)
     #print(YWoutline)
     beginindex=grep("@begin",YWoutline)
     endindex=grep("@end",YWoutline)
