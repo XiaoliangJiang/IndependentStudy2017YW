@@ -336,17 +336,17 @@ lines=lines[cand]
 ### width adjust line_nr, title, output path, header
 
   # only continue if there is a valid pattern
-  if (length(lines) == 0) {
-    return(warning("No line matching the required pattern",
-                   call. = FALSE, immediate. = TRUE))
-  }
+  #if (length(lines) == 0) {
+  #  return(warning("No line matching the required pattern",
+  #                 call. = FALSE, immediate. = TRUE))
+  #}
 
   # issue warning if there are no titles
   pattern_titles <- grep("^(#   |##  |### )[^\\._)].*$", lines, value = TRUE)
-  if (length(pattern_titles) == 0) { # if there were no titles
-    warning("There are no segment titles.",
-            call. = FALSE, immediate. = TRUE)
-  }
+  #if (length(pattern_titles) == 0) { # if there were no titles
+  #  warning("There are no segment titles.",
+  #          call. = FALSE, immediate. = TRUE)
+  #}
 
   # remove right hand hashes if desired
   if (rm_rh_hashes) {
@@ -364,8 +364,8 @@ lines=lines[cand]
   ## get the title strings
     if (length(pattern_titles) == 0) { # if there were no titles
       width <- options()$strcode$char_length
-      warning("width set to options()$strcode.char.length",
-              call. = FALSE, immediate. = TRUE)
+    #  warning("width set to options()$strcode.char.length",
+    #          call. = FALSE, immediate. = TRUE)
     } else { # if there were titles
       width <- max(nchar(pattern_titles))
     }
