@@ -41,6 +41,19 @@ The animation below shows using `strcode` for embedding YesWorkflow annotations 
 
 <img src="https://github.com/XiaoliangJiang/IndependentStudy2017YW/blob/master/demos/Generating%20YesWorkflow%20Annotations.gif" width="800px" />
 
-
+You may found more examples on http://absflow.westus.cloudapp.azure.com/
 
 # Generating RDF from YesWorkflow annotations
+By using `str_sum()` function, all of the YesWorkflow annotations will be summariezed. In addition, by adding a argument of `rdf=YW`, a RDF file in turtle format will be generated in the same working directory of your R scripts.
+
+Here is an example:
+<img src="https://github.com/XiaoliangJiang/IndependentStudy2017YW/blob/master/demos/Generating%20RDF.png" width="800px" />
+
+In addition, the sample RDF file is as follows:
+<img src="https://github.com/XiaoliangJiang/IndependentStudy2017YW/blob/master/demos/RDF%20file.png" width="800px" />
+
+The YesWorkflow annotation example can be found in following website:
+http://absflow.westus.cloudapp.azure.com/
+
+And the annotations can generate a well-designed diagram of YesWorkflow:
+<img src="https://github.com/XiaoliangJiang/IndependentStudy2017YW/blob/master/demos/YW%20editor.png" width="800px" />
