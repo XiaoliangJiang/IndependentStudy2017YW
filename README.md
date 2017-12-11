@@ -32,7 +32,7 @@ You can install the package from GitHub.
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("IndependentStudy2017YW")
+devtools::install_github("XiaoliangJiang/IndependentStudy2017YW")
 ```
 <a id="structuring"></a>
 
